@@ -6,7 +6,7 @@
   "author": "techer jean sebastien <techerjeansebastien.pro@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "SET NODE_ENV=test && sequelize-cli db:migrate && jest test -i tests/user.test.js --watch",
+    "test": "sequelize-cli db:migrate && jest test -i tests/user.test.js --watch",
     "run:dev": "sequelize-cli db:migrate && node server.js",
     "lint": "eslint ./"
   },
