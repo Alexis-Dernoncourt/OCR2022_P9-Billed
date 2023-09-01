@@ -6,9 +6,11 @@ import "@testing-library/jest-dom"
 import {screen, waitFor} from "@testing-library/dom"
 import BillsUI from "../views/BillsUI.js"
 import { bills } from "../fixtures/bills.js"
-import { ROUTES_PATH} from "../constants/routes.js"
+import { ROUTES_PATH, ROUTES } from "../constants/routes.js"
 import {localStorageMock} from "../__mocks__/localStorage.js"
 import router from "../app/Router.js"
+import Bills from '../containers/Bills.js'
+import userEvent from '@testing-library/user-event'
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on Bills Page", () => {
@@ -33,6 +35,70 @@ describe("Given I am connected as an employee", () => {
       const antiChrono = (a, b) => ((a < b) ? 1 : -1)
       const datesSorted = [...dates].sort(antiChrono)
       expect(dates).toEqual(datesSorted)
+    })
+    test("Then I should be able to click on the eye icon to see details of bill", async () => {
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+
+      const newBill = new Bills({
+        document, onNavigate, store: null, localStorage: window.localStorage
+      })
+      document.body.innerHTML = BillsUI({ data: bills })
+      const handleClickIconEye = jest.fn((e) => newBill.handleClickIconEye(e))
+      
+      await waitFor(() => screen.getAllByTestId('icon-eye'))
+      const buttonToSeeBill = screen.getAllByTestId('icon-eye')
+      buttonToSeeBill.forEach(icon => {
+        icon.addEventListener('click', handleClickIconEye(icon))
+      })
+      userEvent.click(buttonToSeeBill[0])
+      expect(handleClickIconEye).toHaveBeenCalled()
+      await waitFor(() => screen.getAllByTestId('modal-user-justif'))
+      expect(screen.getByTestId(`modal-user-justif`)).toBeTruthy()
+      expect(screen.getByTestId(`modal-title`)).toHaveClass('modal-title')
+      expect(screen.getByText(`Justificatif`)).toBeTruthy()
+    })
+    test("Then I should be able to click new-bill button", async () => {
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+
+      const newBill = new Bills({
+        document, onNavigate, store: null, localStorage: window.localStorage
+      })
+
+      document.body.innerHTML = BillsUI({ data: bills })
+      const handleClickNewBill = jest.fn(() => newBill.handleClickNewBill())
+
+      await waitFor(() => screen.getByTestId('btn-new-bill'))
+      const buttonNewBill = screen.getByTestId('btn-new-bill')
+      buttonNewBill.addEventListener('click', handleClickNewBill)
+      userEvent.click(buttonNewBill)
+      expect(handleClickNewBill).toHaveBeenCalled()
+      expect(screen.getByText('Envoyer une note de frais')).toBeTruthy()
+    })
+  })
+  describe("When I am on NewBills Page", () => {
+    test("Then newBill icon should be highlighten", async () => {
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+      window.onNavigate(ROUTES_PATH.NewBill)
+      await waitFor(() => screen.getByTestId('icon-mail'))
+      const mailIcon = screen.getByTestId('icon-mail')
+      expect(mailIcon).toHaveClass('active-icon')
     })
   })
 })
