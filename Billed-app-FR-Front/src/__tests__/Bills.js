@@ -11,8 +11,52 @@ import {localStorageMock} from "../__mocks__/localStorage.js"
 import router from "../app/Router.js"
 import Bills from '../containers/Bills.js'
 import userEvent from '@testing-library/user-event'
+import mockStore from "../__mocks__/store"
 
 describe("Given I am connected as an employee", () => {
+  describe("When I am on Bills Page", () => {
+    // test d'intégration GET
+    test("fetches bills from mock API GET", async () => {
+      document.body.innerHTML = BillsUI({ data: bills })
+      localStorage.setItem("user", JSON.stringify({ type: "Employee", email: "employee@test.tld" }));
+      await waitFor(() => screen.getByText("Mes notes de frais"))
+      expect(screen.getByTestId("tbody")).toBeTruthy()
+    })
+    describe("When an error occurs on API", () => {
+      beforeEach(() => {
+        jest.spyOn(mockStore, "bills")
+        Object.defineProperty(
+            window,
+            'localStorage',
+            { value: localStorageMock }
+        )
+        window.localStorage.setItem('user', JSON.stringify({
+          type: 'Employee',
+          email: "e@e"
+        }))
+        const root = document.createElement("div")
+        root.setAttribute("id", "root")
+        document.body.appendChild(root)
+        router()
+      })  
+      test("fetches messages from an API and fails with message error", async () => {
+        mockStore.bills.mockImplementationOnce(() => {
+          return {
+            list : () =>  {
+              return Promise.reject(new Error("Erreur"))
+            }
+          }})
+  
+        window.onNavigate(ROUTES_PATH.Bills)
+        await new Promise(process.nextTick);
+        const err = screen.getByTestId('error-message');
+        expect(err).toBeTruthy()
+        const message = screen.getByText(/Erreur/)
+        expect(message).toBeTruthy()
+      })
+    })
+    // Fin test d'intégration GET
+  })
   describe("When I am on Bills Page", () => {
     test("Then bill icon in vertical layout should be highlighted", async () => {
 
@@ -50,12 +94,12 @@ describe("Given I am connected as an employee", () => {
         document, onNavigate, store: null, localStorage: window.localStorage
       })
       document.body.innerHTML = BillsUI({ data: bills })
-      const handleClickIconEye = jest.fn((e) => newBill.handleClickIconEye(e))
+      const handleClickIconEye = jest.fn((icon) => newBill.handleClickIconEye(icon))
       
       await waitFor(() => screen.getAllByTestId('icon-eye'))
       const buttonToSeeBill = screen.getAllByTestId('icon-eye')
       buttonToSeeBill.forEach(icon => {
-        icon.addEventListener('click', handleClickIconEye(icon))
+        icon.addEventListener('click', () => handleClickIconEye(icon))
       })
       userEvent.click(buttonToSeeBill[0])
       expect(handleClickIconEye).toHaveBeenCalled()
