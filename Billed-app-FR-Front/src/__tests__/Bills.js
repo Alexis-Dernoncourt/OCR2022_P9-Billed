@@ -133,4 +133,16 @@ describe("Given I am connected as an employee", () => {
       expect(screen.getByText('Envoyer une note de frais')).toBeTruthy()
     })
   })
+  describe("When I am on NewBills Page", () => {
+    test("Then newBill icon should be highlighten", async () => {
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+      window.onNavigate(ROUTES_PATH.NewBill)
+      await waitFor(() => screen.getByTestId('icon-mail'))
+      const mailIcon = screen.getByTestId('icon-mail')
+      expect(mailIcon).toHaveClass('active-icon')
+    })
+  })
 })
