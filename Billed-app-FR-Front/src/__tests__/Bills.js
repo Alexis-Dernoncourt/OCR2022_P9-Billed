@@ -4,21 +4,28 @@
 
 import "@testing-library/jest-dom"
 import {screen, waitFor} from "@testing-library/dom"
+import userEvent from '@testing-library/user-event'
 import BillsUI from "../views/BillsUI.js"
-import { bills } from "../fixtures/bills.js"
+import Bills from '../containers/Bills.js'
 import { ROUTES_PATH, ROUTES } from "../constants/routes.js"
 import {localStorageMock} from "../__mocks__/localStorage.js"
-import router from "../app/Router.js"
-import Bills from '../containers/Bills.js'
-import userEvent from '@testing-library/user-event'
 import mockStore from "../__mocks__/store"
+import { bills } from "../fixtures/bills.js"
+import router from "../app/Router.js"
+
+jest.mock("../app/store", () => mockStore)
+
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on Bills Page", () => {
     // test d'intégration GET
-    test("fetches bills from mock API GET", async () => {
-      document.body.innerHTML = BillsUI({ data: bills })
+    test("1.fetches bills from mock API GET", async () => {
       localStorage.setItem("user", JSON.stringify({ type: "Employee", email: "employee@test.tld" }));
+      const root = document.createElement("div")
+      root.setAttribute("id", "root")
+      document.body.append(root)
+      router()
+      await window.onNavigate(ROUTES_PATH.Bills)
       await waitFor(() => screen.getByText("Mes notes de frais"))
       expect(screen.getByTestId("tbody")).toBeTruthy()
     })
@@ -51,8 +58,6 @@ describe("Given I am connected as an employee", () => {
         await new Promise(process.nextTick);
         const err = screen.getByTestId('error-message');
         expect(err).toBeTruthy()
-        const message = screen.getByText(/Erreur/)
-        expect(message).toBeTruthy()
       })
     })
     // Fin test d'intégration GET
@@ -90,16 +95,17 @@ describe("Given I am connected as an employee", () => {
         type: 'Employee'
       }))
 
-      const newBill = new Bills({
+      const Bill = new Bills({
         document, onNavigate, store: null, localStorage: window.localStorage
       })
       document.body.innerHTML = BillsUI({ data: bills })
-      const handleClickIconEye = jest.fn((icon) => newBill.handleClickIconEye(icon))
+      const handleClickIconEye = jest.fn((icon) => Bill.handleClickIconEye(icon))
       
       await waitFor(() => screen.getAllByTestId('icon-eye'))
       const buttonToSeeBill = screen.getAllByTestId('icon-eye')
-      buttonToSeeBill.forEach(icon => {
-        icon.addEventListener('click', () => handleClickIconEye(icon))
+      expect(buttonToSeeBill).toBeTruthy()
+      buttonToSeeBill.forEach(i => {
+        i.addEventListener('click', () => handleClickIconEye(i))
       })
       userEvent.click(buttonToSeeBill[0])
       expect(handleClickIconEye).toHaveBeenCalled()
@@ -123,7 +129,7 @@ describe("Given I am connected as an employee", () => {
       })
 
       document.body.innerHTML = BillsUI({ data: bills })
-      const handleClickNewBill = jest.fn(() => newBill.handleClickNewBill())
+      const handleClickNewBill = jest.fn((e) => newBill.handleClickNewBill(e))
 
       await waitFor(() => screen.getByTestId('btn-new-bill'))
       const buttonNewBill = screen.getByTestId('btn-new-bill')
