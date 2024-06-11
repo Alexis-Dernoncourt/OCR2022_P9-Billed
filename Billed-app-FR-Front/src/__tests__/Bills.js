@@ -4,13 +4,64 @@
 
 import "@testing-library/jest-dom"
 import {screen, waitFor} from "@testing-library/dom"
+import userEvent from '@testing-library/user-event'
 import BillsUI from "../views/BillsUI.js"
-import { bills } from "../fixtures/bills.js"
-import { ROUTES_PATH} from "../constants/routes.js"
+import Bills from '../containers/Bills.js'
+import { ROUTES_PATH, ROUTES } from "../constants/routes.js"
 import {localStorageMock} from "../__mocks__/localStorage.js"
+import mockStore from "../__mocks__/store"
+import { bills } from "../fixtures/bills.js"
 import router from "../app/Router.js"
 
+jest.mock("../app/store", () => mockStore)
+
+
 describe("Given I am connected as an employee", () => {
+  describe("When I am on Bills Page", () => {
+    // test d'intégration GET
+    test("1.fetches bills from mock API GET", async () => {
+      localStorage.setItem("user", JSON.stringify({ type: "Employee", email: "employee@test.tld" }));
+      const root = document.createElement("div")
+      root.setAttribute("id", "root")
+      document.body.append(root)
+      router()
+      await window.onNavigate(ROUTES_PATH.Bills)
+      await waitFor(() => screen.getByText("Mes notes de frais"))
+      expect(screen.getByTestId("tbody")).toBeTruthy()
+    })
+    describe("When an error occurs on API", () => {
+      beforeEach(() => {
+        jest.spyOn(mockStore, "bills")
+        Object.defineProperty(
+            window,
+            'localStorage',
+            { value: localStorageMock }
+        )
+        window.localStorage.setItem('user', JSON.stringify({
+          type: 'Employee',
+          email: "e@e"
+        }))
+        const root = document.createElement("div")
+        root.setAttribute("id", "root")
+        document.body.appendChild(root)
+        router()
+      })  
+      test("fetches messages from an API and fails with message error", async () => {
+        mockStore.bills.mockImplementationOnce(() => {
+          return {
+            list : () =>  {
+              return Promise.reject(new Error("Erreur"))
+            }
+          }})
+  
+        window.onNavigate(ROUTES_PATH.Bills)
+        await new Promise(process.nextTick);
+        const err = screen.getByTestId('error-message');
+        expect(err).toBeTruthy()
+      })
+    })
+    // Fin test d'intégration GET
+  })
   describe("When I am on Bills Page", () => {
     test("Then bill icon in vertical layout should be highlighted", async () => {
 
@@ -33,6 +84,71 @@ describe("Given I am connected as an employee", () => {
       const antiChrono = (a, b) => ((a < b) ? 1 : -1)
       const datesSorted = [...dates].sort(antiChrono)
       expect(dates).toEqual(datesSorted)
+    })
+    test("Then I should be able to click on the eye icon to see details of bill", async () => {
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+
+      const Bill = new Bills({
+        document, onNavigate, store: null, localStorage: window.localStorage
+      })
+      document.body.innerHTML = BillsUI({ data: bills })
+      const handleClickIconEye = jest.fn((icon) => Bill.handleClickIconEye(icon))
+      
+      await waitFor(() => screen.getAllByTestId('icon-eye'))
+      const buttonToSeeBill = screen.getAllByTestId('icon-eye')
+      expect(buttonToSeeBill).toBeTruthy()
+      buttonToSeeBill.forEach(i => {
+        i.addEventListener('click', () => handleClickIconEye(i))
+      })
+      userEvent.click(buttonToSeeBill[0])
+      expect(handleClickIconEye).toHaveBeenCalled()
+      await waitFor(() => screen.getAllByTestId('modal-user-justif'))
+      expect(screen.getByTestId(`modal-user-justif`)).toBeTruthy()
+      expect(screen.getByTestId(`modal-title`)).toHaveClass('modal-title')
+      expect(screen.getByText(`Justificatif`)).toBeTruthy()
+    })
+    test("Then I should be able to click new-bill button", async () => {
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname })
+      }
+
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+
+      const newBill = new Bills({
+        document, onNavigate, store: null, localStorage: window.localStorage
+      })
+
+      document.body.innerHTML = BillsUI({ data: bills })
+      const handleClickNewBill = jest.fn((e) => newBill.handleClickNewBill(e))
+
+      await waitFor(() => screen.getByTestId('btn-new-bill'))
+      const buttonNewBill = screen.getByTestId('btn-new-bill')
+      buttonNewBill.addEventListener('click', handleClickNewBill)
+      userEvent.click(buttonNewBill)
+      expect(handleClickNewBill).toHaveBeenCalled()
+      expect(screen.getByText('Envoyer une note de frais')).toBeTruthy()
+    })
+  })
+  describe("When I am on NewBills Page", () => {
+    test("Then newBill icon should be highlighten", async () => {
+      Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+      window.localStorage.setItem('user', JSON.stringify({
+        type: 'Employee'
+      }))
+      window.onNavigate(ROUTES_PATH.NewBill)
+      await waitFor(() => screen.getByTestId('icon-mail'))
+      const mailIcon = screen.getByTestId('icon-mail')
+      expect(mailIcon).toHaveClass('active-icon')
     })
   })
 })
